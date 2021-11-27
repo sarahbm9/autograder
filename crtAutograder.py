@@ -85,7 +85,7 @@ class AutoGrader(object):
         student_dirs = [f.path for f in os.scandir(self.path) if f.is_dir() and os.path.basename(f.path) in self.students_to_grade]
 
         # Print out the students that do not have a folder created
-        for nonexistent in [s for s in self.students_to_grade if s not in os.path.basename(student_dirs)]:
+        for nonexistent in [s for s in self.students_to_grade if s not in [os.path.basename(d) for d in student_dirs]]:
             print ("Error: " + nonexistent + ": Student did not sumbit source code")
 
         # For every student
