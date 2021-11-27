@@ -3,6 +3,7 @@ import os
 import sys
 import unicodecsv as csv
 import subprocess
+import traceback
 
 class AutoGrader(object):
     # Initialize the Autograder with arguments specific to an assignment
@@ -84,15 +85,18 @@ class AutoGrader(object):
         student_dirs = [f.path for f in os.scandir(self.path) if f.is_dir() and os.path.basename(f.path) in self.students_to_grade]
 
         # Print out the students that do not have a folder created
-        for nonexistent_student in [s for s in self.students_to_grade if s not in student_dirs]:
-            print ("Error: " + nonexistent_student + ": Student did not sumbit source code")
+        for nonexistent in [s for s in self.students_to_grade if s not in os.path.basename(student_dirs)]:
+            print ("Error: " + nonexistent + ": Student did not sumbit source code")
 
         # For every student
         for dir in student_dirs:
+            print("Compiling code for student: " + os.path.basename(dir))
+
             # Figure out what cpp files to compile and whether they exist
             student_cpp_files = [os.path.join(dir, cpp) for cpp in self.cpp_files]
             if not all([os.path.exists(f) for f in student_cpp_files]):
                 print("Error: " + os.path.basename(dir) + ": A specified .cpp file does not exist")
+                print("---------------------------------------------")
                 continue
 
             # Figure out the studuent executable file name
@@ -104,6 +108,7 @@ class AutoGrader(object):
             # If the executable doesn't exist, the compilation failed
             if not os.path.exists(student_exe_file):
                 print("Error: " + os.path.basename(dir) + ": Could not compile for reason:\n" + str(x))
+                print("---------------------------------------------")
                 continue
 
             # Record the student as being successfully compiled
@@ -127,11 +132,16 @@ class AutoGrader(object):
 
             # Execute the file
             try:
+                out = err = None
                 proc = subprocess.Popen(student_exe_file, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-                (out, err) = proc.communicate(self.input_string.encode('utf-8') + "\n".encode('utf-8'))
+                if self.input_string is not None:
+                    (out, err) = proc.communicate(self.input_string.encode('utf-8') + "\n".encode('utf-8'))
+                else:
+                    (out, err) = proc.communicate()
                 print("Program Output:\n" + str(out))
             except:
                 print("Error: Failed to run file: " + str(student_exe_file))
+                print("Traceback:\n " + str(traceback.format_exc()))
 
             # Ask the grader if the output is correct
             output_good = input("\n\nDoes the output look good? (y/n): ")
