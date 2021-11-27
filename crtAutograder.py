@@ -63,10 +63,7 @@ class AutoGrader(object):
     def run(self):
         # Do the compilation
         print("----------------- Compile -----------------")
-        if not skip_compilation:
-            self.compileAll()
-        else:
-            print("Skipping Compilation")
+        self.compileAll()
         print("-------------------------------------------\n")
 
         input("Compilation complete:" + \
@@ -81,38 +78,54 @@ class AutoGrader(object):
 
     # Compile all of the code for all of the students
     def compileAll(self):
-        # Full path to all of the student directories that will be graded
+        # Get all the student directories
         student_dirs = [f.path for f in os.scandir(self.path) if f.is_dir() and os.path.basename(f.path) in self.students_to_grade]
 
-        # Print out the students that do not have a folder created
-        for nonexistent in [s for s in self.students_to_grade if s not in [os.path.basename(d) for d in student_dirs]]:
-            print ("Error: " + nonexistent + ": Student did not sumbit source code")
+        # If we need to skip compilation
+        if skip_compilation:
+            print("Skipping Compilation")
 
-        # For every student
-        for dir in student_dirs:
-            print("Compiling code for student: " + os.path.basename(dir))
+            # For each student
+            for dir in student_dirs:
+                # If the .exe exists, compilation was previously done
+                student_exe_file = os.path.join(dir, self.exe_file)
+                if os.path.exists(student_exe_file):
+                    # Record the student as being successfully compiled
+                    self.compiled_students.append(os.path.basename(dir))
 
-            # Figure out what cpp files to compile and whether they exist
-            student_cpp_files = [os.path.join(dir, cpp) for cpp in self.cpp_files]
-            if not all([os.path.exists(f) for f in student_cpp_files]):
-                print("Error: " + os.path.basename(dir) + ": A specified .cpp file does not exist")
-                print("---------------------------------------------")
-                continue
+        # Otherwise, compile each student
+        else:
+            # Print out the students that do not have a folder created
+            for nonexistent in [s for s in self.students_to_grade if s not in [os.path.basename(d) for d in student_dirs]]:
+                print ("Error: " + nonexistent + ": Student did not sumbit source code")
 
-            # Figure out the studuent executable file name
-            student_exe_file = os.path.join(dir, self.exe_file)
+            # For every student
+            for dir in student_dirs:
+                print("Compiling code for student: " + os.path.basename(dir))
 
-            # Compile the files
-            x = subprocess.getoutput("cl /EHsc /Fe\"" + student_exe_file + "\" " + " ".join(student_cpp_files))
+                # Figure out what cpp files to compile and whether they exist
+                student_cpp_files = [os.path.join(dir, cpp) for cpp in self.cpp_files]
+                if not all([os.path.exists(f) for f in student_cpp_files]):
+                    print("Error: " + os.path.basename(dir) + ": A specified .cpp file does not exist")
+                    print("---------------------------------------------")
+                    continue
 
-            # If the executable doesn't exist, the compilation failed
-            if not os.path.exists(student_exe_file):
-                print("Error: " + os.path.basename(dir) + ": Could not compile for reason:\n" + str(x))
-                print("---------------------------------------------")
-                continue
+                # Figure out the studuent executable file name and remove it if it exists
+                student_exe_file = os.path.join(dir, self.exe_file)
+                if os.path.exists(student_exe_file):
+                    os.remove(student_exe_file)
 
-            # Record the student as being successfully compiled
-            self.compiled_students.append(os.path.basename(dir))
+                # Compile the files
+                x = subprocess.getoutput("cl /EHsc /Fe\"" + student_exe_file + "\" " + " ".join(student_cpp_files))
+
+                # If the executable doesn't exist, the compilation failed
+                if not os.path.exists(student_exe_file):
+                    print("Error: " + os.path.basename(dir) + ": Could not compile for reason:\n" + str(x))
+                    print("---------------------------------------------")
+                    continue
+
+                # Record the student as being successfully compiled
+                self.compiled_students.append(os.path.basename(dir))
 
         # Determine the students that failed compilation
         self.failed_students = [s for s in self.students_to_grade if s not in self.compiled_students]
